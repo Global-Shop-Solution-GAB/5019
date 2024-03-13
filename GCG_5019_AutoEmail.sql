@@ -1,0 +1,9 @@
+CREATE TABLE GCG_5019_AutoEmail(
+ ID INTEGER NOT NULL ,
+ Customer CHAR(6) NOT NULL ,
+ Email LONGVARCHAR,
+ Frequency INTEGER,
+ Frequency_Rem INTEGER,
+ PRIMARY KEY (Customer));
+
+CREATE UNIQUE INDEX PK_Customer USING 0 ON GCG_5019_AutoEmail(Customer);
