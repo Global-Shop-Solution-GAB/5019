@@ -1,0 +1,620 @@
+Program.Sub.ScreenSU.Start
+Gui.frmAddLines..Create
+Gui.frmAddLines..Caption("Customer Auto Email List")
+Gui.frmAddLines..Size(11715,13005)
+Gui.frmAddLines..MinX(0)
+Gui.frmAddLines..MinY(0)
+Gui.frmAddLines..Position(0,0)
+Gui.frmAddLines..BackColor(-2147483633)
+Gui.frmAddLines..MaxButton(False)
+Gui.frmAddLines..MousePointer(0)
+Gui.frmAddLines..Event(UnLoad,frmAddLines_UnLoad)
+Gui.frmAddLines.GsGridLines.Create(GsGridControl)
+Gui.frmAddLines.GsGridLines.Size(11280,11850)
+Gui.frmAddLines.GsGridLines.Position(75,450)
+Gui.frmAddLines.GsGridLines.Event(RowCellClick,GsGridLines_RowCellClick)
+Gui.frmAddLines.GsGridLines.Event(CellValueChanged,GsGridLines_CellValueChanged)
+Gui.frmAddLines.lbl1.Create(Label,"Emails separated by a comma",True,3960,255,0,5250,150,True,0,"Arial",8,-2147483633,0)
+Gui.frmAddLines.lbl1.ForeColor(12582912)
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+F.Intrinsic.Control.SetErrorHandler("Main_Err")
+F.Intrinsic.Control.ClearErrors
+
+'Developed by RANJIT
+'Customer - Automated E-mail Customer Open Order List - Tru-die Limited
+
+
+V.Local.sError.Declare(String)
+v.Global.lRCnt.Declare 
+V.Global.bSave.Declare
+v.Global.sOrderNo.Declare
+v.Global.sOrderLn.Declare
+v.Global.sTransType.Declare
+
+
+''Email Task
+f.Intrinsic.Control.If(Variable.Ambient.IsInTaskScheduler,=,True)
+	f.Intrinsic.Control.CallSub(Load_Data)
+f.Intrinsic.Control.else
+'Email Maintenance Program
+	f.Intrinsic.Control.CallSub(Load_Grid)
+f.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("Main_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_5019_AutoEmail.g2u",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+Function.Intrinsic.Control.EndIf
+
+
+Program.Sub.Main.End
+
+Program.Sub.frmAddLines_UnLoad.Start
+F.Intrinsic.Control.SetErrorHandler("Load_Grid_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+variable.local.returnvalue.Declare(String)
+
+F.Intrinsic.Control.If(V.Global.bSave,=,True)
+	Function.Intrinsic.UI.MsgBox("Changes not saved, Do you want to save the changes ?", "Confirm", 4, variable.local.returnvalue)
+	F.Intrinsic.Control.If(variable.local.returnvalue,=,6)
+		f.Intrinsic.Control.CallSub(cmdOK_Click)
+	f.Intrinsic.Control.EndIf 
+f.Intrinsic.Control.EndIf 
+
+F.ODBC.Connection!con.Close
+F.Intrinsic.Control.End 
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("Load_Grid_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_5019_AutoEmail.g2u",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+Function.Intrinsic.Control.EndIf
+
+
+Program.Sub.frmAddLines_UnLoad.End
+
+Program.Sub.Load_Grid.Start
+F.Intrinsic.Control.SetErrorHandler("Load_Grid_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+V.Local.sSQL.Declare(String)
+V.Local.sType.Declare(String)
+v.Local.iTotClmn.Declare 
+v.Local.i.Declare
+v.Local.stitle.Declare
+'v.Local.sOrderNo.Declare
+'v.Local.sOrderLn.Declare
+v.local.iret.Declare 
+v.Local.bExist.Declare
+
+
+F.ODBC.Connection!con.OpenCompanyConnection(300)
+
+
+Function.ODBC.Connection!con.TableExists("GCG_5019_AutoEmail", v.Local.bExist)
+f.Intrinsic.Control.If(v.Local.bExist,=,false)
+	f.Intrinsic.UI.InvokeWaitDialog("Creating Custom Table...")
+
+	f.ODBC.Connection!con.Execute("CREATE TABLE GCG_5019_AutoEmail(ID INTEGER NOT NULL , Customer CHAR(6) NOT NULL ,Email LONGVARCHAR,Frequency INTEGER,Frequency_Rem INTEGER,PRIMARY KEY (Customer))")
+	f.ODBC.Connection!con.Execute("CREATE UNIQUE INDEX PK_GCG_5019 USING 1 ON GCG_5019_AutoEmail(Customer)")
+
+	f.Intrinsic.UI.CloseWaitDialog
+f.Intrinsic.Control.Endif
+
+
+f.Intrinsic.String.Build("select ID,Auto.Customer,'' as 'CustBrow',Name_Customer, Email,Frequency  from v_customer_Master Mast join GCG_5019_AutoEmail Auto on Mast.Customer = Auto.Customer order by ID","",V.Local.sSQL)
+F.Intrinsic.Control.If(v.DataTable.DTLines.Exists,=,True)
+	F.Data.DataTable.Close("DTLines")
+f.Intrinsic.Control.EndIf 
+
+F.Data.DataTable.CreateFromSQL("DTLines","con",v.Local.sSQL,True)
+	f.Intrinsic.Control.If(Variable.DataTable.DTLines.rowcount,>,0)
+		v.Local.iret.Set(Variable.DataTable.DTLines.rowcount)
+	f.Intrinsic.Control.Else
+		v.Local.iret.Set(0)
+	f.Intrinsic.Control.EndIf
+
+	F.Data.DataView.Create("DTLines","DVLines")
+
+	gui.frmAddLines.GsGridLines.SuspendLayout 
+
+	F.Data.DataTable.AddColumn("DTLines","Action","string","Delete")
+
+'Function.Intrinsic.Debug.InvokeDebugger
+'Function.Intrinsic.Debug.Stop
+
+'	f.Intrinsic.Math.Add(v.local.iret,1,V.Global.lRCnt)
+	'Add Blank row for data entry
+	f.Data.DataTable.AddRow("DTLines","ID",v.local.iret,"Customer","","CustBrow","","Name_Customer","","Email","","Frequency",1,"Action","Add")
+	f.Intrinsic.Math.Add(v.local.iret,1,V.Global.lRCnt)
+
+	gui.frmAddLines.GsGridLines.AddGridViewFromDataView("GridView","DTLines","DVLines")
+
+	gui.frmAddLines.GsGridLines.GetColumnCount("GridView",v.Local.iTotClmn)
+	f.Intrinsic.Math.Sub(v.Local.iTotClmn,1,v.Local.iTotClmn)
+	f.Intrinsic.Control.For(v.Local.i,0,v.Local.iTotClmn,1)
+		gui.frmAddLines.GsGridLines.GetColumnNamebyIndex("GridView",v.Local.i,v.Local.stitle)
+		gui.frmAddLines.GsGridLines.SetColumnProperty("GridView",v.Local.stitle,"AllowEdit",False)
+		gui.frmAddLines.GsGridLines.SetColumnProperty("GridView",v.Local.stitle,"ReadOnly",True)
+
+		gui.frmAddLines.GsGridLines.SetColumnProperty("GridView",v.Local.stitle,"HeaderFontBold","True")
+		gui.frmAddLines.GsGridLines.SetColumnProperty("GridView",v.Local.stitle,"HeaderBackColor","#7FFF00")
+		gui.frmAddLines.GsGridLines.SetColumnProperty("GridView",v.Local.stitle,"HeaderHAlignment","Center")
+		gui.frmAddLines.GsGridLines.SetColumnProperty("GridView",v.Local.stitle,"HeaderWordWrap","wrap")
+	f.Intrinsic.Control.Next(v.Local.i)
+	Gui.frmAddLines.GsGridLines.SetGridviewProperty("GridView","OptionsViewRowAutoHeight",True)
+
+	gui.frmAddLines.GsGridLines.AddStyleFormatCOndition("GridView", "Action", "tagName1","NotEqual","1")
+	gui.frmAddLines.GsGridLines.SetStyleFormatCOnditionProperty("GridView",  "Action", "tagName1", "backcolor", "#D3D3D3")
+
+	gui.frmAddLines.GsGridLines.AddStyleFormatCOndition("GridView", "Action", "tagName1","NotEqual","1")
+	gui.frmAddLines.GsGridLines.SetStyleFormatCOnditionProperty("GridView",  "Action", "tagName1", "FontBold", True)
+
+
+	gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","Email","AllowEdit",True)
+	gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","Email","ReadOnly",False)
+	gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","Frequency","AllowEdit",True)
+	gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","Frequency","ReadOnly",False)
+	
+'	Gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","CustBrow","Icon","BROWSE")
+	Gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","CustBrow","Icon","^")
+
+	gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","CustBrow","Caption"," ")
+	
+	gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","Name_Customer","Caption","Customer Name")
+
+	gui.frmAddLines.GsGridLines.SetColumnProperty("GridView", "ID", "Visible", False)
+
+	gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","Customer","MinWidth",70)
+	gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","Customer","MaxWidth",70)
+	
+	gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","Name_Customer","MinWidth",150)
+	gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","Name_Customer","MaxWidth",150)
+	
+	gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","CustBrow","MinWidth",30)
+	gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","CustBrow","MaxWidth",30)
+	
+	gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","Frequency","MinWidth",70)
+	gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","Frequency","MaxWidth",70)
+'	
+	gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","Action","MinWidth",70)
+	gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","Action","MaxWidth",70)
+
+	gui.frmAddLines.GsGridLines.SetColumnProperty("GridView", "Email", "CellWordWrap", "Wrap")
+	
+	Gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","Action","CellHAlignment","center")
+
+
+	gui.frmAddLines.GsGridLines.SetGridViewProperty("GridView", "OptionsSelectionEnableAppearanceFocusedRow", "False") 
+
+
+	gui.frmAddLines.GsGridLines.ResumeLayout 
+
+	gui.frmAddLines.GsGridLines.MainView("GridView")
+
+
+	gui.frmAddLines.GsGridLines.Anchor(15)
+	gui.frmAddLines..Show 
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("Load_Grid_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_5019_AutoEmail.g2u",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+Function.Intrinsic.Control.EndIf
+
+
+Program.Sub.Load_Grid.End
+
+Program.Sub.GsGridLines_RowCellClick.Start
+F.Intrinsic.Control.SetErrorHandler("frmAddLines_UnLoad_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+
+V.Local.sSql.Declare
+V.Local.sRet.Declare
+V.Local.sFilter.Declare	
+V.Local.sSelect.Declare
+
+f.Intrinsic.Control.BlockEvents 
+
+f.Intrinsic.Control.If(V.Args.column,=,"CustBrow")
+	F.Intrinsic.UI.SetBrowserHotTypeAhead(True)
+	F.Intrinsic.UI.Browser(205,"",V.Local.sRet)
+	F.Intrinsic.Control.If(V.Local.sRet,<>,"***CANCEL***")
+		F.Intrinsic.String.Split(V.Local.sRet,"*!*",V.Local.sRet)
+
+		f.Intrinsic.String.RPad(V.Local.sRet(0)," ",6,V.Local.sRet)
+		F.Intrinsic.String.Build("Customer = '{0}'",V.Local.sRet,V.Local.sFilter)
+		F.Data.DataTable.Select("DTLines",V.Local.sFilter,V.Local.sSelect)
+		F.Intrinsic.Control.If(V.Local.sSelect,<>,"***NORETURN***")
+			f.Intrinsic.UI.Msgbox("Customer already added , duplicate not allowed")
+			f.Intrinsic.Control.UnBlockEvents 
+			f.Intrinsic.Control.ExitSub
+		f.Intrinsic.Control.EndIf 
+		
+		F.Data.DataTable.SetValue("DTLines",V.Args.RowIndex,"Customer",V.Local.sRet(0))
+		F.Data.DataTable.SetValue("DTLines",V.Args.RowIndex,"Name_Customer",V.Local.sRet(1).Trim)
+		V.Global.bSave.Set(True)
+		Gui.frmAddLines.GsGridLines.FocusCell("GridView",V.Args.RowIndex,4)
+	F.Intrinsic.Control.EndIf
+f.Intrinsic.Control.ElseIf(V.Args.column,=,"Action")
+	gui.frmAddLines.GsGridLines.GetCellValueByColumnName("GridView",V.Args.column,V.Args.RowIndex,Variable.local.sRet)
+	'check key for Delete
+	f.Intrinsic.Control.If(Variable.local.sRet,=,"Delete")
+		f.Data.DataTable.DeleteRow("DTLines",V.Args.RowHandle)
+		F.Data.DataTable.SaveToDB("DTLines","con","GCG_5019_AutoEmail","ID*!*Customer",4,"ID@!@ID*!*Customer@!@Customer*!*Email@!@Email*!*Frequency@!@Frequency")
+		F.Data.DataTable.AcceptChanges("DTLines")
+		V.Global.bSave.Set(False)
+	f.Intrinsic.Control.Else 
+		'check key for ADD
+		'Validate for  Data Entry Fields
+		f.Intrinsic.Control.If(v.DataTable.DTLines(v.Args.Rowhandle).Email!FieldValtrim,=,"","or",v.DataTable.DTLines(v.Args.Rowhandle).Customer!FieldValtrim,=,"",v.DataTable.DTLines(v.Args.Rowhandle).Frequency!FieldValtrim,=,"")
+			f.Intrinsic.Control.UnBlockEvents 
+			f.Intrinsic.Control.ExitSub 
+		f.Intrinsic.Control.EndIf 
+		F.Data.DataTable.AcceptChanges("DTLines")
+		f.Intrinsic.Control.CallSub(cmdsave_click,"Smode","ADD")
+		f.Intrinsic.Control.If(V.Args.bRet,=,True)
+			f.Data.DataTable.SetValue("DTLines",V.Args.RowHandle,"Action","Delete")
+
+			f.Data.DataTable.AddRow("DTLines","ID",v.Global.lRCnt,"Customer", "","Name_Customer", "","CustBrow","","Email","","Frequency",1,"Action","Add")
+			GUI.frmAddLines.GsGridLines.SetCellAppearance("GridView",2,V.DataTable.DTLines.ROWCOUNT--,"Icon","^")
+			f.Intrinsic.Math.Add(V.Global.lRCnt,1,V.Global.lRCnt)
+		f.Intrinsic.Control.Endif
+	Function.Intrinsic.Control.EndIf
+Function.Intrinsic.Control.EndIf
+f.Intrinsic.Control.UnBlockEvents 
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("frmAddLines_UnLoad_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	f.Intrinsic.Control.UnBlockEvents 
+	Function.Intrinsic.String.Concat("Project: GCG_5019_AutoEmail.g2u",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+Function.Intrinsic.Control.EndIf
+
+
+Program.Sub.GsGridLines_RowCellClick.End
+
+Program.Sub.cmdsave_click.Start
+F.Intrinsic.Control.SetErrorHandler("cmdsave_click_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+V.Local.sRet.Declare(string)
+V.Local.sFieldNames.Declare(string)
+V.Local.sTypes.Declare(string)
+
+F.Intrinsic.Control.If(V.DataView.DTLines!DVSave.Exists,=,True)
+	Function.Data.DataView.Close("DTLines","DVSave")
+f.Intrinsic.Control.EndIf 
+
+f.Intrinsic.Control.If(v.Args.Smode,=,"ADD")
+	f.Data.DataView.Create("DTLines","DVSave",22,"Customer <> '' and Email <> '' and Frequency>=0 and Action='Add'","")
+f.Intrinsic.Control.Else
+	f.Data.DataView.Create("DTLines","DVSave",22,"Customer <> '' and Email <> '' and Frequency>=0 ","")
+f.Intrinsic.Control.EndIf
+
+f.Data.DataView.ToDataTable("DTLines","DVSave","DTSave")
+'ADD
+f.Intrinsic.Control.If(v.Args.Smode,=,"ADD")
+	F.Data.DataTable.SaveToDB("DTSave","con","GCG_5019_AutoEmail","ID*!*Customer",1,"ID@!@ID*!*Customer@!@Customer*!*Email@!@Email*!*Frequency@!@Frequency*!*Frequency@!@Frequency_Rem")
+f.Intrinsic.Control.Else
+'Modify dont change rem frequency
+	F.Data.DataTable.SaveToDB("DTSave","con","GCG_5019_AutoEmail","ID*!*Customer",256,"ID@!@ID*!*Customer@!@Customer*!*Email@!@Email*!*Frequency@!@Frequency")
+f.Intrinsic.Control.EndIf
+
+V.Global.bSave.Set(False)
+
+f.Intrinsic.Variable.AddRV("bRet","True")
+
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("cmdsave_click_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_5019_AutoEmail.g2u",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+Function.Intrinsic.Control.EndIf
+
+
+Program.Sub.cmdsave_click.End
+
+Program.Sub.GsGridLines_CellValueChanged.Start
+F.Intrinsic.Control.SetErrorHandler("Main_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+
+V.Global.bSave.Set(True)
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("Main_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_5019_AutoEmail.g2u",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+Function.Intrinsic.Control.EndIf
+
+
+Program.Sub.GsGridLines_CellValueChanged.End
+
+Program.Sub.cmdOK_Click.Start
+F.Intrinsic.Control.SetErrorHandler("Create_Menus_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+Variable.Local.lret.Declare 
+
+
+'if data not saved
+F.Intrinsic.Control.If(V.Global.bSave,=,True)
+	f.Intrinsic.Control.CallSub(cmdsave_click,"Smode","ADD")
+	f.Intrinsic.Control.If(V.Args.bRet,=,False)
+		f.Intrinsic.UI.Msgbox("Data not saved")
+		F.Intrinsic.Control.ExitSub
+	f.Intrinsic.Control.Endif
+f.Intrinsic.Control.EndIf 
+
+f.Intrinsic.Control.CallSub(frmaddlines_unload)
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("Create_Menus_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_5019_AutoEmail.g2u",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+Function.Intrinsic.Control.EndIf
+
+
+Program.Sub.cmdOK_Click.End
+
+Program.Sub.Load_Data.Start
+F.Intrinsic.Control.SetErrorHandler("Sub_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+V.Local.sSQL.Declare(String)
+v.Local.sText.Declare
+v.Local.sFilter.Declare
+v.Local.ifor.Declare
+v.Local.sfilename.Declare 
+v.Local.sfiledate.Declare 
+v.Local.sTemplateDir.Declare
+v.Local.sFileExport.Declare
+v.Local.sTempfolder.Declare 
+v.Local.bRet.Declare
+V.local.sRecepient.Declare
+v.local.sSender.Declare
+V.Local.sSubj.Declare
+V.Local.iUserID.Declare
+V.Local.sBody.Declare
+v.Local.sRet.Declare
+v.Local.sCustomerlist.Declare
+
+'get all records
+'create seperate files
+
+
+F.ODBC.Connection!con.OpenCompanyConnection(300)
+
+
+f.Intrinsic.Date.Weekday(v.Ambient.Date,v.Local.ifor)
+'considering Monday is frequency Start day
+f.Intrinsic.Control.If(v.Local.ifor,=,2)
+	'Reset Frequency
+	F.ODBC.Connection!con.Execute("update GCG_5019_AutoEmail set Frequency_rem = Frequency")
+f.Intrinsic.Control.EndIf
+
+V.Local.sSQL.Set("Select Distinct VOH.Customer,VOBT.NAME_CUSTOMER,VOH.CUSTOMER_PO,VOL.ORDER_NO,LEFT(VOL.RECORD_NO,3) AS RECORD_NO,VOL.PRODUCT_LINE,COALESCE(VOL.PART,'') AS PART,VOL.LOCATION,VOL.DESCRIPTION")
+f.Intrinsic.String.Build("{0},VOL.USER_4,VOL.USER_5,VOL.Qty_ordered,CASE WHEN VOL.FLAG_USE_MQD != 'Y' THEN VOL.QTY_BO WHEN FLAG_USE_MQD = 'Y' THEN VOSS.QTY_OPEN END AS QTY_BO,",V.Local.sSQL,V.Local.sSQL)
+f.Intrinsic.String.Build("{0} VOH.DATE_ORDER,CASE WHEN VOL.FLAG_USE_MQD != 'Y' THEN VOL.DATE_ITEM_PROM WHEN FLAG_USE_MQD = 'Y' THEN VOSS.CUST_DUE_DATE END AS DATE_ITEM_PROM,",V.Local.sSQL,V.Local.sSQL)
+f.Intrinsic.String.Build("{0} VOH.SALESPERSON, CASE WHEN VOL.FLAG_USE_MQD = 'Y' THEN CONVERT(1,SQL_BIT) ELSE CONVERT(0,SQL_BIT) END AS FLAG_USE_MQD,email,Frequency",V.Local.sSQL,V.Local.sSQL)
+f.Intrinsic.String.Build("{0} FROM V_ORDER_LINES VOL LEFT JOIN V_OE_SHIP_SCHED VOSS ON VOSS.ORDER_NO = VOL.ORDER_NO AND VOSS.ORDER_LINE = VOL.RECORD_NO LEFT JOIN V_ORDER_HEADER VOH ON VOL.ORDER_NO = VOH.ORDER_NO LEFT JOIN V_ORDER_BILL_TO VOBT ON VOL.ORDER_NO = VOBT.ORDER_NO Join GCG_5019_AutoEmail Auto on VOH.Customer = Auto.Customer WHERE QTY_BO > 0 and Frequency_rem>0 ORDER BY PART",V.Local.sSQL,V.Local.sSQL)
+
+	F.Intrinsic.Control.If(v.DataTable.Header.Exists,=,True)
+		F.Data.DataTable.Close("Header")
+	f.Intrinsic.Control.EndIf 
+
+	F.Data.DataTable.CreateFromSql("Header","con",v.Local.sSql)
+	f.Intrinsic.Control.If(v.DataTable.Header.RowCount,=,0)
+		F.Data.DataTable.Close("Header")
+		F.ODBC.Connection!con.Close
+		F.Intrinsic.Control.End 
+	f.Intrinsic.Control.EndIf
+	
+	
+	F.Data.DataView.Create("Header","HeaderV")
+	
+	Function.Data.DataView.ToDataTableDistinct("Header","HeaderV","DTCust","Customer")
+	
+	f.Intrinsic.String.StripCharacters(v.Ambient.Now,v.Local.sfiledate)
+	gui.frmAddLines.GsGridLines.AddGridViewFromDataView("GridView","Header","HeaderV")
+	f.Intrinsic.Control.CallSub(File_Layout)
+	Gui.frmAddLines.GsGridLines.MainView("Gridview")
+	
+	f.Intrinsic.String.Build("{0}\5019",v.Caller.FilesDir,v.Local.sTempfolder)
+	f.Intrinsic.File.DirExists(v.Local.sTempfolder,v.Local.bRet)
+	f.Intrinsic.Control.If(v.Local.bRet,=,False)
+		f.Intrinsic.File.CreateDir(v.Local.sTempfolder)
+	f.Intrinsic.Control.EndIf
+	
+	f.Intrinsic.String.Build("{0}\5019\{1}",v.Caller.FilesDir,v.Local.sfiledate,v.Local.sTempfolder)
+	f.Intrinsic.File.DirExists(v.Local.sTempfolder,v.Local.bRet)
+	f.Intrinsic.Control.If(v.Local.bRet,=,False)
+		f.Intrinsic.File.CreateDir(v.Local.sTempfolder)
+	f.Intrinsic.Control.EndIf
+	
+	
+	F.Global.Security.GetuserID(V.Caller.User,V.Caller.CompanyCode,V.Local.iUserID)
+	F.Global.Security.GetUserEmail(V.Caller.User,V.Local.sSender)
+	
+	'Get Company Name
+	F.Global.General.ReadOption("130000",1,"","0000",v.Local.sRet)
+
+	f.Intrinsic.String.Build("Open Order List - {0}",v.Local.sRet,V.Local.sSubj)
+	
+	f.Intrinsic.Control.CallSub(get_emailbody)
+	V.Local.sBody.Set(v.args.emailbody)
+	
+
+	f.Intrinsic.Control.For(v.Local.ifor,0,v.DataTable.DTCust.RowCount--,1)
+		
+		f.Intrinsic.String.Build("Customer='{0}'",v.DataTable.DTCust(v.local.ifor).customer!Fieldval,v.Local.sFilter)
+		f.Data.DataView.SetFilter("Header","HeaderV",v.Local.sFilter)
+		
+		f.Intrinsic.String.Replace(v.DataView.Header!HeaderV(0).Email!Fieldval,",","@!@",V.local.sRecepient)
+		F.Intrinsic.String.Build("GCG_5019_{0}_{1}.xlsx",v.Local.sfiledate,v.DataView.Header!HeaderV(0).NAME_CUSTOMER!Fieldvaltrim,v.Local.sfilename)
+		F.Intrinsic.String.Build("{0}\{1}",v.Local.sTempfolder,v.Local.sfilename,v.Local.sFileExport)
+
+		Gui.frmAddLines.GsGridLines.Export(V.Local.sFileExport,"xlsx")
+		
+		f.Intrinsic.Control.If(v.Local.ifor,=,0)
+			v.Local.sCustomerlist.Set(v.DataTable.DTCust(v.local.ifor).customer!Fieldval)
+			f.Intrinsic.String.Build("'{0}'",v.DataTable.DTCust(v.local.ifor).customer!Fieldval,v.Local.sCustomerlist)
+		f.Intrinsic.Control.Else
+			f.Intrinsic.String.Build("{0},'{1}'",v.Local.sCustomerlist,v.DataTable.DTCust(v.local.ifor).customer!Fieldval,v.Local.sCustomerlist)
+		f.Intrinsic.Control.EndIf
+
+		F.Intrinsic.UI.Sleep(1)
+
+		'AttachmentFileName*!*AttachmentFilePath
+		f.Intrinsic.String.Build("{0}*!*{1}",v.Local.sfilename,v.Local.sTempfolder,V.Local.sFileExport)
+		
+		
+		F.Global.Messaging.QueueMessage(v.Caller.CompanyCode,V.Local.iUserID,v.Caller.Caller,V.Local.sSubj,v.local.sSender,v.Local.sRecepient,V.Local.sBody,5,"",False,"","","","","","","",v.Local.sFileExport,False)
+
+	f.Intrinsic.Control.Next(v.Local.ifor)
+	
+	'change frequency
+	f.Intrinsic.String.Build("update GCG_5019_AutoEmail set Frequency_rem = Frequency_rem-1 where customer in ({0})",v.Local.sCustomerlist,v.Local.sCustomerlist)
+	F.ODBC.Connection!con.Execute(v.Local.sCustomerlist)
+	
+	F.Data.DataView.Close("Header","HeaderV")
+	F.Data.DataTable.Close("Header")
+	F.Data.DataTable.Close("DTCust")
+	
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("Sub_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: Project",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+Function.Intrinsic.Control.EndIf
+Program.Sub.Load_Data.End
+
+Program.Sub.File_Layout.Start
+F.Intrinsic.Control.SetErrorHandler("Sub_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+
+Gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","NAME_CUSTOMER","Caption","Customer Name")
+Gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","PRODUCT_LINE","Caption","PL")
+Gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","PART","Caption","SO Part")
+Gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","DESCRIPTION","Caption","Description")
+Gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","LOCATION","Caption","Loc")
+Gui.ffrmAddLines.GsGridLines.SetColumnProperty("GridView","CUSTOMER_PO","Caption","Customer PO")
+Gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","ORDER_NO","Caption","SO")
+Gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","RECORD_NO","Caption","SO Line")
+Gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","QTY_BO","Caption","BO Qty")
+Gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","Qty_ordered","Caption","SO Qty")
+Gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","DATE_ITEM_PROM","Caption","SO Due Date")
+Gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","DATE_ORDER","Caption","SO Order Date")
+Gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","USER_4","Caption","Tool code")
+Gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","USER_5","Caption","Job Type")
+Gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","SALESPERSON","Caption","S/P")
+Gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","FLAG_USE_MQD","Caption","Ship Schd")
+
+Gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","CUSTOMER","MinWidth","150")
+Gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","NAME_CUSTOMER","MinWidth","190")
+Gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","PRODUCT_LINE","MinWidth","25")
+Gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","PART","MinWidth","125")
+Gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","DESCRIPTION","MinWidth","200")
+Gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","LOCATION","MinWidth","50")
+Gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","CUSTOMER_PO","MinWidth","120")
+Gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","ORDER_NO","MinWidth","80")
+Gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","RECORD_NO","MinWidth","50")
+Gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","QTY_BO","MinWidth","70")
+Gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","Qty_ordered","MinWidth","70")
+Gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","DATE_ITEM_PROM","MinWidth","70")
+Gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","DATE_ORDER","MinWidth","70")
+Gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","USER_4","MinWidth","150")
+Gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","USER_5","MinWidth","150")
+Gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","SALESPERSON","MinWidth","30")
+Gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","FLAG_USE_MQD","MinWidth","55")
+	
+Gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","DATE_ITEM_PROM","DisplayCustomDatetime","d")
+Gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","DATE_ORDER","DisplayCustomDatetime","d")
+
+Gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","email","Visible",False)
+Gui.frmAddLines.GsGridLines.SetColumnProperty("GridView","Frequency","Visible",False)
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("Sub_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: Project",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+Function.Intrinsic.Control.EndIf
+Program.Sub.File_Layout.End
+
+Program.Sub.get_emailbody.Start
+F.Intrinsic.Control.SetErrorHandler("Sub_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+v.local.bRet.Declare
+V.Local.sFilname.Declare
+V.Local.iFile.Declare
+V.Local.sText.Declare
+v.Local.sTempfolder.Declare
+
+F.Intrinsic.String.Build("{0}\GCG_5019\Email_body.txt",V.Caller.GasDir,V.Local.sFilname)
+Function.Intrinsic.File.Exists(V.Local.sFilname,v.local.bRet)
+f.Intrinsic.Control.If(v.local.bRet,=,True)
+	F.Intrinsic.File.GetHandle(V.Local.iFile)
+	F.Intrinsic.File.OpenForRead(V.Local.sFilname,V.Local.iFile)
+	F.Intrinsic.File.ReadFile(V.Local.iFile,V.Local.sText)
+	f.Intrinsic.File.CloseFile(V.Local.iFile)
+	f.Intrinsic.Variable.AddRV("emailbody",V.Local.sText)
+f.Intrinsic.Control.else
+	f.Intrinsic.String.Build("{0}\GCG_5019",v.Caller.GasDir,v.Local.sTempfolder)
+	f.Intrinsic.File.DirExists(v.Local.sTempfolder,v.Local.bRet)
+	f.Intrinsic.Control.If(v.Local.bRet,=,False)
+		f.Intrinsic.File.CreateDir(v.Local.sTempfolder)
+		F.Intrinsic.File.String2File(V.Local.sFilname,"Open Order Log")
+		f.Intrinsic.Variable.AddRV("emailbody","Open Order Log")
+	f.Intrinsic.Control.EndIf
+f.Intrinsic.Control.endif
+
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("Sub_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: Project",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+Function.Intrinsic.Control.EndIf
+Program.Sub.get_emailbody.End
+
+Program.Sub.Comments.Start
+${$0$}$Lines Additional Description$}$RAN$}$4/25/2018 11:08:50 AM$}$False
+${$3$}$0$}$$}$0$}$-1$}$$}$12:00:00 AM$}$To create a program that will allow the user to store emailId fror customer
+Program.Sub.Comments.End
